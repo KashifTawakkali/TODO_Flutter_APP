@@ -12,6 +12,8 @@ import 'package:todo_app/views/screens/tasks_screen.dart';
 import 'package:todo_app/views/screens/profile_screen.dart';
 import 'package:todo_app/widgets/task_form.dart';
 import 'package:todo_app/views/widgets/task_item.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,15 +29,50 @@ class _HomeScreenState extends State<HomeScreen> {
   TaskPriority selectedPriority = TaskPriority.medium;
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  String _userName = '';
+  bool _isLoadingUser = true;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _loadUserData();
     // Load tasks when the screen is created
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<TaskViewModel>().loadTasks('test_user_id');
     });
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final User? currentUser = _auth.currentUser;
+      if (currentUser != null) {
+        final userData = await _firestore
+            .collection('users')
+            .doc(currentUser.uid)
+            .get();
+        
+        if (userData.exists) {
+          setState(() {
+            _userName = userData.data()?['displayName'] ?? currentUser.displayName ?? 'User';
+            _isLoadingUser = false;
+          });
+        } else {
+          setState(() {
+            _userName = currentUser.displayName ?? 'User';
+            _isLoadingUser = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading user data: $e');
+      setState(() {
+        _userName = 'User';
+        _isLoadingUser = false;
+      });
+    }
   }
 
   void _onScroll() {
@@ -73,7 +110,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return Scaffold(
           appBar: buildFullAppBar(
             context,
-            userName: "Brenda",
+            userName: _isLoadingUser ? 'Loading...' : _userName,
             taskCount: tasks.length,
           ),
           body: Column(
