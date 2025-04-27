@@ -4,7 +4,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:todo_app/models/task.dart';
 import 'package:todo_app/viewmodels/task_view_model.dart';
-import 'package:todo_app/widgets/mock_images.dart';
+import 'package:todo_app/views/widgets/task_item.dart';
 import 'package:todo_app/utils/colors.dart';
 
 class TasksScreen extends StatefulWidget {
@@ -73,34 +73,15 @@ class _TasksScreenState extends State<TasksScreen> {
             children: [
               _buildCategoryFilter(),
               Expanded(
-                child: ListView(
-                  controller: _scrollController,
-                  children: [
-                    ...tasks.map((task) => _buildTaskItem(task, taskViewModel)).toList(),
-                    if (tasks.isEmpty)
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.check_circle_outline,
-                              size: 64,
-                              color: CustomColors.TextGrey,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No tasks found',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: CustomColors.TextHeaderGrey,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
+                child: tasks.isEmpty
+                    ? _buildEmptyState()
+                    : ListView.builder(
+                        controller: _scrollController,
+                        itemCount: tasks.length,
+                        itemBuilder: (context, index) {
+                          return TaskItem(task: tasks[index]);
+                        },
                       ),
-                  ],
-                ),
               ),
             ],
           ),
@@ -109,91 +90,28 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  Widget _buildTaskItem(Task task, TaskViewModel taskViewModel) {
-    Color categoryColor = _getCategoryColor(task.category);
-    
-    return Slidable(
-      endActionPane: ActionPane(
-        motion: const ScrollMotion(),
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CustomSlidableAction(
-            onPressed: (_) => taskViewModel.deleteTask(task.id),
-            backgroundColor: Colors.transparent,
-            child: MockImages.deleteTaskIcon(),
+          const Icon(
+            Icons.check_circle_outline,
+            size: 64,
+            color: CustomColors.TextGrey,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No tasks found',
+            style: TextStyle(
+              fontSize: 18,
+              color: CustomColors.TextHeaderGrey,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 15),
-        padding: const EdgeInsets.fromLTRB(5, 13, 5, 13),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: <Widget>[
-            GestureDetector(
-              onTap: () => taskViewModel.updateTask(
-                task.copyWith(isCompleted: !task.isCompleted),
-              ),
-              child: task.isCompleted
-                  ? MockImages.checkedBox()
-                  : MockImages.uncheckedBox(),
-            ),
-            Text(
-              task.dueDate != null
-                  ? '${task.dueDate!.hour.toString().padLeft(2, '0')}:${task.dueDate!.minute.toString().padLeft(2, '0')}'
-                  : '--:--',
-              style: TextStyle(color: CustomColors.TextGrey),
-            ),
-            Container(
-              width: 180,
-              child: Text(
-                task.title,
-                style: TextStyle(
-                  color: task.isCompleted
-                      ? CustomColors.TextGrey
-                      : CustomColors.TextHeader,
-                  fontWeight: task.isCompleted ? FontWeight.normal : FontWeight.w600,
-                  decoration:
-                      task.isCompleted ? TextDecoration.lineThrough : null,
-                ),
-              ),
-            ),
-            MockImages.bellIcon(isActive: !task.isCompleted),
-          ],
-        ),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            stops: const [0.015, 0.015],
-            colors: [categoryColor, Colors.white],
-          ),
-          borderRadius: const BorderRadius.all(
-            Radius.circular(5.0),
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: CustomColors.GreyBorder,
-              blurRadius: 10.0,
-              spreadRadius: 5.0,
-              offset: Offset(0.0, 0.0),
-            ),
-          ],
-        ),
-      ),
     );
-  }
-
-  Color _getCategoryColor(TaskCategory category) {
-    switch (category) {
-      case TaskCategory.personal:
-        return CustomColors.YellowIcon;
-      case TaskCategory.work:
-        return CustomColors.GreenIcon;
-      case TaskCategory.shopping:
-        return CustomColors.OrangeIcon;
-      case TaskCategory.health:
-        return CustomColors.BlueIcon;
-      default:
-        return CustomColors.PurpleIcon;
-    }
   }
 
   Widget _buildCategoryFilter() {

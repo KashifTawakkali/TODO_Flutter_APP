@@ -43,7 +43,7 @@ class _TaskItemState extends State<TaskItem> {
   String _getStatusText(TaskStatus status) {
     switch (status) {
       case TaskStatus.pending:
-        return 'Pending';
+        return 'Newly Created';
       case TaskStatus.inProgress:
         return 'In Progress';
       case TaskStatus.onHold:
@@ -51,22 +51,22 @@ class _TaskItemState extends State<TaskItem> {
       case TaskStatus.completed:
         return 'Completed';
       default:
-        return 'Pending';
+        return 'Newly Created';
     }
   }
 
   Color _getStatusColor(TaskStatus status) {
     switch (status) {
       case TaskStatus.pending:
-        return Colors.orange;
+        return Colors.yellow.shade600;
       case TaskStatus.inProgress:
         return Colors.blue;
       case TaskStatus.onHold:
-        return Colors.amber;
+        return Colors.orange;
       case TaskStatus.completed:
         return Colors.green;
       default:
-        return Colors.orange;
+        return Colors.yellow.shade600;
     }
   }
 
@@ -80,255 +80,224 @@ class _TaskItemState extends State<TaskItem> {
     final bool isOwner = currentUser?.uid == widget.task.ownerId;
     final bool isAssignee = currentUser?.uid == widget.task.assigneeId;
 
-    return Card(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: _getStatusColor(widget.task.status),
-          width: 2,
+      child: Card(
+        elevation: _isExpanded ? 4 : 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
-      ),
-      child: InkWell(
-        onTap: () {
-          setState(() {
-            _isExpanded = !_isExpanded;
-          });
-        },
-        child: Column(
-          children: [
-            // Task Header
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(widget.task.status),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.task.title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: _getStatusColor(widget.task.status).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                _getStatusText(widget.task.status),
-                                style: TextStyle(
-                                  color: _getStatusColor(widget.task.status),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            if (widget.task.dueDate != null) ...[
-                              const SizedBox(width: 8),
-                              Icon(Icons.calendar_today, size: 12, color: Colors.grey[600]),
-                              const SizedBox(width: 4),
-                              Text(
-                                DateFormat('MMM d, y').format(widget.task.dueDate!),
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    _isExpanded ? Icons.expand_less : Icons.expand_more,
-                    color: Colors.grey,
-                  ),
-                ],
-              ),
+        color: _getStatusColor(widget.task.status).withOpacity(0.1),
+        child: ExpansionTile(
+          onExpansionChanged: (expanded) {
+            setState(() {
+              _isExpanded = expanded;
+            });
+          },
+          initiallyExpanded: _isExpanded,
+          title: Text(
+            widget.task.title,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
             ),
-            // Expanded Details
-            if (_isExpanded)
+          ),
+          subtitle: Row(
+            children: [
               Container(
-                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                margin: const EdgeInsets.only(top: 4),
                 decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(12),
-                    bottomRight: Radius.circular(12),
+                  color: _getStatusColor(widget.task.status).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  _getStatusText(widget.task.status),
+                  style: TextStyle(
+                    color: _getStatusColor(widget.task.status),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                child: FutureBuilder<List<String?>>(
-                  future: Future.wait([
-                    if (widget.task.ownerId != currentUser?.uid) _getUserName(widget.task.ownerId),
-                    if (widget.task.assigneeId != null) _getUserName(widget.task.assigneeId!),
-                  ]),
-                  builder: (context, snapshot) {
-                    String ownerName = widget.task.ownerId == currentUser?.uid ? 'You' : 
-                      (snapshot.data != null && snapshot.data!.isNotEmpty ? snapshot.data![0] ?? 'Unknown' : 'Unknown');
-                    String assigneeName = widget.task.assigneeId == currentUser?.uid ? 'You' : 
-                      (snapshot.data != null && snapshot.data!.length > 1 ? snapshot.data![1] ?? 'Unassigned' : 'Unassigned');
+              ),
+            ],
+          ),
+          leading: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: _getStatusColor(widget.task.status),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              _getStatusIcon(widget.task.status),
+              color: Colors.white,
+              size: 16,
+            ),
+          ),
+          children: [
+            FutureBuilder<List<String?>>(
+              future: Future.wait([
+                if (widget.task.ownerId != currentUser?.uid) _getUserName(widget.task.ownerId),
+                if (widget.task.assigneeId != null) _getUserName(widget.task.assigneeId!),
+              ]),
+              builder: (context, snapshot) {
+                String ownerName = widget.task.ownerId == currentUser?.uid ? 'You' : 
+                  (snapshot.data != null && snapshot.data!.isNotEmpty ? snapshot.data![0] ?? 'Unknown' : 'Unknown');
+                String assigneeName = widget.task.assigneeId == currentUser?.uid ? 'You' : 
+                  (snapshot.data != null && snapshot.data!.length > 1 ? snapshot.data![1] ?? 'Unassigned' : 'Unassigned');
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Divider(height: 1),
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Description
-                              if (widget.task.description.isNotEmpty) ...[
-                                const Text(
-                                  'Description',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(widget.task.description),
-                                const SizedBox(height: 16),
-                                const Divider(),
-                                const SizedBox(height: 16),
-                              ],
-                              // Assignment Info
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Created by',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(ownerName),
-                                      ],
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Assigned to',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(assigneeName),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              const Divider(),
-                              const SizedBox(height: 16),
-                              // Status Update
-                              if (isOwner || isAssignee) ...[
-                                const Text(
-                                  'Update Status',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Divider(height: 1),
+                      const SizedBox(height: 16),
+                      
+                      // Description
+                      if (widget.task.description.isNotEmpty) ...[
+                        _buildDetailRow(
+                          'Description',
+                          widget.task.description,
+                          Icons.description,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Due Date
+                      if (widget.task.dueDate != null)
+                        _buildDetailRow(
+                          'Due Date',
+                          DateFormat('MMM d, y').format(widget.task.dueDate!),
+                          Icons.calendar_today,
+                        ),
+                      const SizedBox(height: 16),
+
+                      // Priority
+                      _buildDetailRow(
+                        'Priority',
+                        widget.task.priority.toString().split('.').last,
+                        Icons.flag,
+                        color: _getPriorityColor(widget.task.priority),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Assignment Info
+                      _buildDetailRow(
+                        'Created by',
+                        ownerName,
+                        Icons.person_outline,
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      _buildDetailRow(
+                        'Assigned to',
+                        assigneeName,
+                        Icons.person,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Status Dropdown
+                      if (isOwner || isAssignee) ...[
+                        const Text(
+                          'Update Status',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: _getStatusColor(widget.task.status),
+                              width: 1,
+                            ),
+                          ),
+                          child: DropdownButton<TaskStatus>(
+                            value: widget.task.status,
+                            isExpanded: true,
+                            underline: Container(),
+                            onChanged: (TaskStatus? newStatus) {
+                              if (newStatus != null) {
+                                _updateTaskStatus(newStatus);
+                              }
+                            },
+                            items: TaskStatus.values.map((TaskStatus status) {
+                              return DropdownMenuItem<TaskStatus>(
+                                value: status,
+                                child: Row(
                                   children: [
-                                    _buildStatusButton(TaskStatus.pending),
+                                    Icon(
+                                      _getStatusIcon(status),
+                                      color: _getStatusColor(status),
+                                      size: 20,
+                                    ),
                                     const SizedBox(width: 8),
-                                    _buildStatusButton(TaskStatus.inProgress),
-                                    const SizedBox(width: 8),
-                                    _buildStatusButton(TaskStatus.onHold),
-                                    const SizedBox(width: 8),
-                                    _buildStatusButton(TaskStatus.completed),
+                                    Text(_getStatusText(status)),
                                   ],
                                 ),
-                              ],
-                            ],
+                              );
+                            }).toList(),
                           ),
                         ),
                       ],
-                    );
-                  },
-                ),
-              ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatusButton(TaskStatus status) {
-    final isSelected = widget.task.status == status;
-    return Expanded(
-      child: InkWell(
-        onTap: () => _updateTaskStatus(status),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? _getStatusColor(status) : Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: _getStatusColor(status),
-              width: 2,
-            ),
-          ),
+  Widget _buildDetailRow(String label, String value, IconData icon, {Color? color}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          size: 20,
+          color: color ?? Colors.grey[600],
+        ),
+        const SizedBox(width: 8),
+        Expanded(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                _getStatusIcon(status),
-                color: isSelected ? Colors.white : _getStatusColor(status),
-                size: 20,
+              Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
-                _getStatusText(status),
+                value,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : _getStatusColor(status),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                  color: color ?? Colors.black87,
                 ),
-                textAlign: TextAlign.center,
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 
   IconData _getStatusIcon(TaskStatus status) {
     switch (status) {
       case TaskStatus.pending:
-        return Icons.schedule;
+        return Icons.fiber_new;
       case TaskStatus.inProgress:
         return Icons.play_circle_outline;
       case TaskStatus.onHold:
@@ -336,7 +305,20 @@ class _TaskItemState extends State<TaskItem> {
       case TaskStatus.completed:
         return Icons.check_circle_outline;
       default:
-        return Icons.schedule;
+        return Icons.fiber_new;
+    }
+  }
+
+  Color _getPriorityColor(TaskPriority priority) {
+    switch (priority) {
+      case TaskPriority.low:
+        return Colors.green;
+      case TaskPriority.medium:
+        return Colors.orange;
+      case TaskPriority.high:
+        return Colors.red;
+      default:
+        return Colors.green;
     }
   }
 } 
